@@ -1,8 +1,14 @@
 import numpy as np
 from sklearn.cluster import DBSCAN
-from scipy.stats import laplace
 
 # -------------------- Helper Functions --------------------
+
+def preprocess_data(data):
+    """
+    Preprocess data: Standardize or normalize if needed.
+    """
+    # Placeholder: You can add scaling, feature selection, or normalization
+    return data
 
 def compute_laplacian_deviation(data, scale_factor=1.0):
     """
@@ -40,41 +46,46 @@ def spbia_flag_outliers(data, bounds):
     flagged_indices = np.where((data < lower_bound) | (data > upper_bound))[0]
     return flagged_indices
 
-# -------------------- Two-Tier Detection --------------------
+# -------------------- Detection Algorithm --------------------
 
-def two_tier_detection(data):
+def detect_poisonous_samples(data):
     """
-    Two-tier detection algorithm combining DBSCAN and SPBIA.
+    Combined detection algorithm based on DBSCAN, LDM, and SPBIA.
     """
-    # Step 1: DBSCAN Clustering for Segmentation
+    # Step 1: Preprocess data
+    data = preprocess_data(data)
+    
+    # Step 2: DBSCAN Clustering for Segmentation
     dbscan_labels = dbscan_clustering(data, eps=0.5, min_samples=5)
     noise_indices = np.where(dbscan_labels == -1)[0]
     print(f"DBSCAN detected {len(noise_indices)} potential outliers.")
 
-    # Step 2: Laplacian Deviation Metric (LDM)
+    # Step 3: Laplacian Deviation Metric (LDM)
     ldm_scores = compute_laplacian_deviation(data)
     ldm_outliers = np.where(ldm_scores > 2.0)[0]  # Threshold for LDM
     print(f"LDM detected {len(ldm_outliers)} potential outliers.")
 
-    # Step 3: SPBIA for Statistical Perturbation Bounds
+    # Step 4: SPBIA for Statistical Perturbation Bounds
     bounds = spbia_set_bounds(data)
     spbia_outliers = spbia_flag_outliers(data, bounds)
     print(f"SPBIA detected {len(spbia_outliers)} potential outliers.")
 
-    # Combine Results
+    # Step 5: Combine Results
     all_outliers = set(noise_indices).union(ldm_outliers).union(spbia_outliers)
     print(f"Combined detection flagged {len(all_outliers)} outliers.")
-    return all_outliers
+
+    # Step 6: Log flagged samples
+    return list(all_outliers)
 
 # -------------------- Example Usage --------------------
 
 if __name__ == "__main__":
-    # Simulate data for Mozilla Common Voice, Speech Commands, or LDC
+    # Simulate dataset with clean and malicious samples
     np.random.seed(42)
     clean_data = np.random.normal(0, 1, (100, 2))  # Clean samples
     malicious_data = np.random.normal(5, 1, (10, 2))  # Malicious samples
     data = np.vstack([clean_data, malicious_data])
 
-    # Detect malicious files
-    outliers = two_tier_detection(data)
-    print(f"Outlier indices: {outliers}")
+    # Detect poisonous samples
+    outliers = detect_poisonous_samples(data)
+    print(f"Flagged outliers (indices): {outliers}")
